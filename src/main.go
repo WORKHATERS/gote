@@ -96,12 +96,11 @@ func main() {
 			table.data = table.data[row.indexEnd:]
 		}
 
+		// заметка
 		blockquote := getInnerData(block.data, "<blockquote>", "</blockquote>")
-		if blockquote == nil {
-			dataString = dataString[block.indexEnd:]
-			continue
+		if blockquote != nil {
+			result += clearString(blockquote.data) + "\n"
 		}
-		result += clearString(blockquote.data) + "\n"
 
 		dataString = dataString[block.indexEnd:]
 	}
