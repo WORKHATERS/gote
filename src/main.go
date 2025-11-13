@@ -50,6 +50,11 @@ func main() {
 			break
 		}
 
+		indexH3 := strings.Index(block.data, "<h3>")
+		if indexH3 != -1 {
+			block.data = block.data[:indexH3]
+		}
+
 		// ссылка
 		link := getInnerData(block.data, "href=\"", "\"")
 		result += link.data + "\n"
@@ -90,6 +95,13 @@ func main() {
 
 			table.data = table.data[row.indexEnd:]
 		}
+
+		blockquote := getInnerData(block.data, "<blockquote>", "</blockquote>")
+		if blockquote == nil {
+			dataString = dataString[block.indexEnd:]
+			continue
+		}
+		result += clearString(blockquote.data) + "\n"
 
 		dataString = dataString[block.indexEnd:]
 	}
