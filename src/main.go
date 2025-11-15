@@ -1,37 +1,41 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
-var index int
+type Base struct {
+	Link 		string
+	Name        string
+	Description string
+	Note        string
+}
 
 type Type struct {
-	name        string
-	description string
-	note        string
-	fields      []Field
+	Base
+	Fields      []Field
 }
 
 type Field struct {
-	name        string
-	typeField   string
-	description string
+	Name        string
+	TypeField   string
+	Description string
 }
 
 type Method struct {
-	name        string
-	description string
-	note        string
-	parameters  []Parameter
+	Base
+	Parameters  []Parameter
 }
 
 type Parameter struct {
-	name        string
-	typeField   string
-	required    bool
-	description string
+	Name        string
+	TypeField   string
+	Required    bool
+	Description string
 }
 
 func main() {
@@ -41,6 +45,7 @@ func main() {
 	}
 	dataString := string(data) + "<h4>"
 
+	var base Base
 	var result string
 
 	for {
@@ -57,15 +62,32 @@ func main() {
 
 		// ссылка
 		link := getInnerData(block.data, "href=\"", "\"")
-		result += link.data + "\n"
 
 		// название
 		name := getInnerData(block.data, "</a>", "</h4>")
-		result += clearString(name.data) + "\n"
+
+		// флаг
+		var isField bool
+		if unicode.IsUpper(rune(name.data[0])) {
+			isField = true
+		}
 
 		// описание
 		description := getInnerData(block.data, "<p>", "</p>")
-		result += clearString(description.data) + "\n"
+
+		// заметка
+		blockquote := getInnerData(block.data, "<blockquote>", "</blockquote>")
+
+		// база
+		base.Link = link.data
+		base.Name = clearString(name.data)
+		base.Description = clearString(description.data)
+		if blockquote != nil {
+			base.Note = clearString(blockquote.data)
+		} else { base.Note = "" }
+
+		var fields []Field
+		var parameters []Parameter
 
 		// таблица
 		table := getInnerData(block.data, "<tbody>", "</tbody>")
@@ -74,13 +96,14 @@ func main() {
 			continue
 		}
 
+		
 		for {
 			// строка
 			row := getInnerData(table.data, "<tr>", "</tr>")
 			if row == nil {
 				break
 			}
-
+			var cellArr []string
 			var rowString string
 			for {
 				// ячейка
@@ -88,23 +111,60 @@ func main() {
 				if cell == nil {
 					break
 				}
-				rowString += clearString(cell.data) + "\n"
+				rowString += clearString(cell.data) + " | "
+				cellArr = append(cellArr, clearString(cell.data))
 				row.data = row.data[cell.indexEnd:]
 			}
-			result += rowString + "\n"
 
+			// заполнение полей | параметров
+			if isField {
+				fields = append(fields, Field {
+					Name:			clearString(cellArr[0]),
+					TypeField: 		clearString(cellArr[1]),
+					Description: 	clearString(cellArr[2]),
+				})
+			} else {
+				requiredString := cellArr[2]
+				var required bool
+				if requiredString == "Yes" {
+					required = true
+				}
+
+				parameters = append(parameters, Parameter {
+					Name:			clearString(cellArr[0]),
+					TypeField:		clearString(cellArr[1]),
+					Required:		required,
+					Description:	clearString(cellArr[3]),
+				})
+			}
+			
 			table.data = table.data[row.indexEnd:]
 		}
 
-		// заметка
-		blockquote := getInnerData(block.data, "<blockquote>", "</blockquote>")
-		if blockquote != nil {
-			result += clearString(blockquote.data) + "\n"
+		// заполнение структур
+		if isField {
+			var TGType Type
+			TGType.Base = base
+			TGType.Fields = fields
+
+			result += writeBase(TGType.Link, TGType.Name, TGType.Description, TGType.Note)
+			for _, f := range TGType.Fields {
+				result += writeField(f.Name, f.TypeField, f.Description)
+			}
+		} else {
+			var TGMethod Method
+			TGMethod.Base = base
+			TGMethod.Parameters = parameters
+
+			result += writeBase(TGMethod.Link, TGMethod.Name, TGMethod.Description, TGMethod.Note)
+			for _, p := range TGMethod.Parameters {
+				result += writeParameter(p.Name, p.TypeField, p.Description, p.Required)
+			}
 		}
 
 		dataString = dataString[block.indexEnd:]
 	}
-
+	
 	indexStart := strings.Index(result, "#update")
 	result = result[indexStart:]
 
@@ -166,4 +226,17 @@ func clearString(line string) string {
 	}
 
 	return line
+}
+
+func writeBase(link, name, desc, note string) string {
+	return fmt.Sprintf("\n%s\n%s\n%s\n%s\n", link, name, desc, note)
+}
+
+func writeField(name, typeField, desc string) string {
+	return fmt.Sprintf("%s | %s | %s\n", name, typeField, desc)
+}
+
+func writeParameter(name, typeField, desc string, required bool) string {
+	requiredString := strconv.FormatBool(required)
+	return fmt.Sprintf("%s | %s | %s | %s\n", name, typeField, requiredString, desc)
 }
