@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"gote/internal/bot"
+	"gote/internal/utils/env"
 	"gote/pkg/types"
+	"os"
 )
 
 func main() {
-	token := ""
+	_ = env.Load(".env")
+	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
 		panic("Токен отсутствует")
 	}
