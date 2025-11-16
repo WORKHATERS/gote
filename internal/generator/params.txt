@@ -1,0 +1,17 @@
+package types
+
+type ReplyMarkup any
+
+{{range .}}
+// {{.Description}}
+{{if .Note}}//
+// {{.Note}}
+//{{else}}// {{end}}
+// https://core.telegram.org/bots/api#{{.Link}}
+type {{.NameUpperCamelCase}} struct {
+	{{range .Fields}}
+	// {{.Description}}
+	{{.NameUpperCamelCase}} {{.TypeField}} `json:"{{.NameSnakeCase}}{{if .Required}},omitempty{{end}}"`
+	{{end}}
+}
+{{end}}

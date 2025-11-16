@@ -1,0 +1,39 @@
+package bot
+import (
+	"context"
+	"encoding/json"
+	"gote/pkg/types"
+)
+
+const URL = "https://api.telegram.org/bot"
+
+{{range .}}
+// {{.Description}}
+{{if .Note}}//
+// {{.Note}}
+//{{else}}// {{end}}
+// https://core.telegram.org/bots/api#{{.Link}}
+func (bot *Bot) {{.NameUpperCamelCase}} (ctx context.Context, param types.{{.NameUpperCamelCase}}) ({{if not .IsPrimitiveType}}*types.{{.ReturnType}}{{else}}{{.ReturnType}}{{end}}, error) {
+	data, err := json.Marshal(param)
+	if err != nil {
+		return {{.ReturnValue}}, err
+	}
+	
+	url := URL + bot.Token + "/{{.NameUpperCamelCase}}"
+	resp, err := requestWithContext(ctx, url, data)
+	if err != nil {
+		return {{.ReturnValue}}, err
+	}	
+	
+	var result TGResponse[{{if not .IsPrimitiveType}}*types.{{.ReturnType}}{{else}}{{.ReturnType}}{{end}}]
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return {{.ReturnValue}}, err
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		return result.Result, err
+	}	
+
+	return result.Result, nil
+}
+{{end}}

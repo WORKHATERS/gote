@@ -1,55 +1,53 @@
 package generator
 
 import (
-	"fmt"
 	"log"
-	// "net/url"
 	"os"
 	"strings"
+	"text/template"
 	"unicode"
 )
 
-type TgType struct {
-	Link        string
-	Name        string
-	Description string
-	Note        string
-	ReturnType  string
-	Fields      []TgField
+type TgObject struct {
+	Link               string
+	Name               string
+	NameUpperCamelCase string
+	Description        string
+	Note               string
+	ReturnType         string
+	IsPrimitiveType    bool
+	ReturnValue        string
+	Fields             []TgField
 }
 
 type TgField struct {
-	Name        string
-	TypeField   string
-	Required    bool
-	Description string
+	NameSnakeCase      string
+	NameUpperCamelCase string
+	TypeField          string
+	Required           bool
+	Description        string
 }
 
 func Generate() {
+	types := []TgObject{}
+	params := []TgObject{}
+
 	data, err := os.ReadFile("./input/doca.html")
 	if err != nil {
 		panic("Не могу прочитать файл")
 	}
 	dataString := string(data) + "<h4>"
 
-	resultTypes := "package types\n"
-	resultParams := "package types\n\ntype ReplyMarkup any\n\n"
-	resultMethods := `package bot
-import (
-	"context"
-	"encoding/json"
-	"gote/pkg/types"
-)
-
-const URL = "https://api.telegram.org/bot"` + "\n\n"
-
+	// перебор блоков от h4 до h4
 	for {
+
 		// блок от названия до названия
-		block := getInnerData(dataString, "<h4>", "<h4>")
+		block := getTagData(dataString, "<h4>", "<h4>")
 		if block == nil {
 			break
 		}
 
+		// проверка на наличие в блоке h3
 		indexH3 := strings.Index(block.data, "<h3>")
 		if indexH3 != -1 {
 			block.data = block.data[:indexH3]
@@ -59,164 +57,182 @@ const URL = "https://api.telegram.org/bot"` + "\n\n"
 		link := getAttributeValue(block.data, "href")
 
 		// название
-		name := getInnerData(block.data, "</a>", "</h4>")
-
+		name := getTagData(block.data, "</a>", "</h4>")
 		if strings.Contains(strings.Trim(name.data, " "), " ") {
 			dataString = dataString[block.indexEnd:]
 			continue
 		}
 
 		// описание
-		description := getInnerData(block.data, "<p>", "</p>")
+		description := getTagData(block.data, "<p>", "</p>")
 
 		// заметка
-		blockquote := getInnerData(block.data, "<blockquote>", "</blockquote>")
+		blockquote := getTagData(block.data, "<blockquote>", "</blockquote>")
 		var note string
 		if blockquote != nil {
 			note = clearString(blockquote.data)
 		}
 
-		// Telegram тип
-		tgType := TgType{
-			Link:        link,
-			Name:        clearString(name.data),
-			Description: clearString(description.data),
-			Note:        note,
+		// Telegram объект
+		tgObject := TgObject{
+			Link:               link,
+			Name:               clearString(name.data),
+			NameUpperCamelCase: toUpperCamelCase(clearString(name.data)),
+			Description:        clearString(description.data),
+			Note:               note,
 		}
 
-		var isType bool
-		if unicode.IsUpper(rune(tgType.Name[0])) {
-			isType = true
-		}
+		// проверка типа по первой букве имени
+		isType := unicode.IsUpper(rune(tgObject.Name[0]))
 
-		var returnType string
+		// если метод, то добавить возвращаемый тип "ReturnType"
 		if !isType {
-			returnType = searchReturnType(description.data)
+			tgObject.ReturnType = searchReturnType(description.data)
+			tgObject.IsPrimitiveType = unicode.IsLower(rune(tgObject.ReturnType[0]))
+			returnValue := "nil"
+			switch tgObject.ReturnType {
+			case "bool":
+				{
+					returnValue = "false"
+				}
+			case "string":
+				{
+					returnValue = "\"\""
+				}
+			case "int64":
+				{
+					returnValue = "0"
+				}
+			}
+			tgObject.ReturnValue = returnValue
+
 		}
 
 		// таблица
-		table := getInnerData(block.data, "<tbody>", "</tbody>")
+		table := getTagData(block.data, "<tbody>", "</tbody>")
 		if table == nil {
-			table = &InnerDataResult{}
-			// dataString = dataString[block.indexEnd:]
-			// continue
+			table = &TagDataResult{}
 		}
 
+		// перебор строк
 		var fields []TgField
-
 		for {
-			// строка
-			row := getInnerData(table.data, "<tr>", "</tr>")
+			row := getTagData(table.data, "<tr>", "</tr>")
 			if row == nil {
 				break
 			}
-			var cellArr []string
+
+			// перебор ячеек
+			var cells []string
 			for {
-				// ячейка
-				cell := getInnerData(row.data, "<td>", "</td>")
+				cell := getTagData(row.data, "<td>", "</td>")
 				if cell == nil {
 					break
 				}
-				cellArr = append(cellArr, clearString(cell.data))
+				cells = append(cells, clearString(cell.data))
+
+				// срез строки
 				row.data = row.data[cell.indexEnd:]
 			}
 
-			fieldName := clearString(cellArr[0])
-			fieldType := convertType(convertName(fieldName), clearString(cellArr[1]))
+			// составление поля
+			fieldNameSnakeCase := clearString(cells[0])
+			fieldNameUpperCamelCase := toUpperCamelCase(fieldNameSnakeCase)
+			fieldType := convertTypeTgToGo(fieldNameUpperCamelCase, clearString(cells[1]))
 			var fieldRequire bool
 			var fieldDescription string
 
 			if isType {
-				fieldDescription = clearString(cellArr[2])
+				fieldDescription = clearString(cells[2])
 				if !strings.Contains(fieldDescription, "Optional.") {
 					fieldRequire = true
 				}
 			} else {
-				requiredString := cellArr[2]
+				requiredString := cells[2]
 				if requiredString == "Yes" {
 					fieldRequire = true
-
 				}
-				fieldDescription = clearString(cellArr[3])
+				fieldDescription = clearString(cells[3])
 			}
 
 			fields = append(fields, TgField{
-				Name:        fieldName,
-				TypeField:   fieldType,
-				Required:    fieldRequire,
-				Description: fieldDescription,
+				NameSnakeCase:      fieldNameSnakeCase,
+				NameUpperCamelCase: fieldNameUpperCamelCase,
+				TypeField:          fieldType,
+				Required:           fieldRequire,
+				Description:        fieldDescription,
 			})
 
+			// срез таблицы
 			table.data = table.data[row.indexEnd:]
 		}
 
-		tgType.Fields = fields
+		tgObject.Fields = fields
 
 		if isType {
-			resultTypes += stringify(tgType)
+			types = append(types, tgObject)
 		} else {
-			tgType.ReturnType = returnType
-			resultParams += stringify(tgType)
-			resultMethods += stringifyMethod(tgType)
+			params = append(params, tgObject)
 		}
 
+		// срез всего файла
 		dataString = dataString[block.indexEnd:]
 	}
 
-	outputDir := "./pkg/types/"
-
-	filePath := outputDir + "types.go"
-	f, err := os.Create(filePath)
-	if err != nil {
-		panic("Не получилось создать файл")
+	type TemplateData struct {
+		Name       string
+		Path       string
+		OutputPath string
+		Data       []TgObject
 	}
 
-	_, err = f.WriteString(resultTypes)
-	if err != nil {
-		panic("Не получилось записать в файл")
+	tamplatesPath := "./internal/generator/"
+	templatesData := []TemplateData{
+		{Name: "types", Path: tamplatesPath, OutputPath: "./pkg/types/", Data: types},
+		{Name: "params", Path: tamplatesPath, OutputPath: "./pkg/types/", Data: params},
+		{Name: "methods", Path: tamplatesPath, OutputPath: "./internal/bot/", Data: params},
 	}
 
-	filePath = outputDir + "methods.go"
-	f, err = os.Create(filePath)
-	if err != nil {
-		panic("Не получилось создать файл")
+	for _, td := range templatesData {
+		// создание шаблона
+		tmpl := createTamplate(td.Path + td.Name + ".txt")
+
+		// создание файла для записи
+		f, err := os.Create(td.OutputPath + td.Name + ".go")
+		if err != nil {
+			panic("Не получилось создать файл")
+		}
+
+		// запись шаблона в файл
+		err = tmpl.Execute(f, td.Data)
+		if err != nil {
+			panic(err)
+		}
 	}
-
-	_, err = f.WriteString(resultParams)
-	if err != nil {
-		panic("Не получилось записать в файл")
-	}
-
-	filePath = "./internal/bot/methods.go"
-	f, err = os.Create(filePath)
-	if err != nil {
-		panic("Не получилось создать файл")
-	}
-
-	_, err = f.WriteString(resultMethods)
-	if err != nil {
-		panic("Не получилось записать в файл")
-	}
-
-	// cmd := exec.Command("gofmt", "./output/result.go")
-	// r, _ := cmd.Output()
-
-	// _ = f.Truncate(0)
-	// _, _ = f.Seek(0, 0)
-
-	// _, err = f.WriteString(r)
-	// if err != nil {
-	// 	panic("Не получилось записать в файл")
-	// }
-
 }
 
-type InnerDataResult struct {
+func createTamplate(path string) *template.Template {
+	// чтение файла с шаблоном
+	dataTemplate, err := os.ReadFile(path)
+	if err != nil {
+		panic("Не могу прочитать файл")
+	}
+
+	// создание шаблона
+	tmpl, err := template.New(path).Parse(string(dataTemplate))
+	if err != nil {
+		panic(err)
+	}
+
+	return tmpl
+}
+
+type TagDataResult struct {
 	indexEnd int
 	data     string
 }
 
-func getInnerData(dataString, tagStart, tagEnd string) *InnerDataResult {
+func getTagData(dataString, tagStart, tagEnd string) *TagDataResult {
 	indexStart := strings.Index(dataString, tagStart[:len(tagStart)-1])
 	if indexStart == -1 {
 		return nil
@@ -234,7 +250,7 @@ func getInnerData(dataString, tagStart, tagEnd string) *InnerDataResult {
 		indexEnd = indexStart + indexOffset
 	}
 
-	result := &InnerDataResult{
+	result := &TagDataResult{
 		indexEnd: indexEnd,
 		data:     dataString[indexStart:indexEnd],
 	}
@@ -259,11 +275,8 @@ func getAttributeValue(text string, attr string) string {
 func clearString(line string) string {
 	for {
 		indexStart := strings.Index(line, "<")
-		if indexStart == -1 {
-			break
-		}
 		indexEnd := strings.Index(line, ">")
-		if indexEnd == -1 {
+		if indexStart == -1 || indexEnd == -1 {
 			break
 		}
 
@@ -275,86 +288,7 @@ func clearString(line string) string {
 	return strings.Trim(line, "\n")
 }
 
-func stringify(base TgType) string {
-	desc := fmt.Sprintf("// %s\n", base.Description)
-	note := "//\n"
-	if base.Note != "" {
-		note = fmt.Sprintf("//\n// %s\n//\n", base.Note)
-	}
-	link := fmt.Sprintf("// https://core.telegram.org/bots/api%s\n", base.Link)
-	comment := desc + note + link
-
-	name := convertName(base.Name)
-	signa := fmt.Sprintf("type %s struct {\n", name)
-
-	var fields string
-	if base.Fields != nil {
-		for _, f := range base.Fields {
-
-			req := ""
-			if !f.Required {
-				req = ",omitempty"
-			}
-			fields += fmt.Sprintf("\t// %s\n\t%s\t%s\t`json:\"%s%s\"`\n", f.Description, convertName(f.Name), f.TypeField, f.Name, req)
-		}
-
-	}
-
-	return comment + signa + fields + "}\n\n"
-}
-
-func stringifyMethod(tgType TgType) string {
-	comment := fmt.Sprintf("// %s\n//\n", tgType.Description)
-	comment += fmt.Sprintf("// %s\n//\n", tgType.Note)
-	comment += fmt.Sprintf("// See https://core.telegram.org/bots/api#%s\n", tgType.Link)
-	name := convertName(tgType.Name)
-
-	formatedType := tgType.ReturnType
-	errValue := "false"
-	if unicode.IsUpper(rune(tgType.ReturnType[0])) {
-		formatedType = "*types." + tgType.ReturnType
-		errValue = "nil"
-	} else if tgType.ReturnType == "string" {
-		errValue = "\"\""
-	} else if tgType.ReturnType == "int64" {
-		errValue = "0"
-	}
-
-	signa := fmt.Sprintf("func (bot *Bot) %s(ctx context.Context, param types.%s) (%s, error) {", name, name, formatedType)
-	marshalBlock := fmt.Sprintf(`
-	data, err := json.Marshal(param)
-	if err != nil {
-		return %s, err
-	}
-	`, errValue)
-
-	requestBlock := fmt.Sprintf(`
-	url := URL + bot.Token + "/%s"
-	resp, err := requestWithContext(ctx, url, data)
-	if err != nil {
-		return %s, err
-	}	
-	`, name, errValue)
-
-	responseBlock := fmt.Sprintf(`
-	var result TGResponse[%s]
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return %s, err
-	}
-
-	if err := resp.Body.Close(); err != nil {
-		return %s, err
-	}	
-
-	`, formatedType, errValue, errValue)
-
-	returnBlock := "return result.Result, nil\n}"
-
-	body := marshalBlock + requestBlock + responseBlock + returnBlock
-	return comment + signa + body + "\n\n"
-}
-
-func convertName(name string) string {
+func toUpperCamelCase(name string) string {
 	result := strings.ToUpper(string(name[0])) + name[1:]
 
 	for {
@@ -369,7 +303,7 @@ func convertName(name string) string {
 	return result
 }
 
-func convertType(n, t string) string {
+func convertTypeTgToGo(n, t string) string {
 	prefix := ""
 	for {
 		if strings.Contains(t, "Array of") {
@@ -432,14 +366,14 @@ func searchReturnType(text string) string {
 		return ""
 	}
 
-	innerTagData := getInnerData(text[indexAnchorWord:], "<a>", "</a>")
+	innerTagData := getTagData(text[indexAnchorWord:], "<a>", "</a>")
 	if innerTagData != nil {
 		return innerTagData.data
 	}
 
-	innerTagData = getInnerData(text[indexAnchorWord:], "<em>", "</em>")
+	innerTagData = getTagData(text[indexAnchorWord:], "<em>", "</em>")
 	if innerTagData != nil {
-		return convertType("", innerTagData.data)
+		return convertTypeTgToGo("", innerTagData.data)
 	}
 
 	return ""
