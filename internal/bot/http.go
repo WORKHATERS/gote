@@ -3,15 +3,17 @@ package bot
 import (
 	"bytes"
 	"context"
+	"gote/pkg/types"
 	"log"
 	"net/http"
 )
 
 type TGResponse[T any] struct {
-	Ok          bool   `json:"ok"`
-	Result      T      `json:"result"`
-	Description string `json:"description,omitempty"`
-	ErrorCode   int    `json:"error_code,omitempty"`
+	Ok          bool                      `json:"ok"`
+	Result      T                         `json:"result"`
+	Description string                    `json:"description,omitempty"`
+	ErrorCode   int                       `json:"error_code,omitempty"`
+	Parameters  *types.ResponseParameters `json:"parameters,omitempty"`
 }
 
 func requestWithContext(ctx context.Context, url string, data []byte) (*http.Response, error) {
