@@ -1,0 +1,20 @@
+package types
+
+{{range .}}
+// {{.Description}}{{range .List}}
+//  - {{.}}{{end}}
+{{if .Note}}//
+// {{.Note}}
+//{{else}}// {{end}}
+// https://core.telegram.org/bots/api#{{.Link}}
+type {{.NameUpperCamelCase}} {{if and .List (not .Fields)}}interface{{else}}struct{{end}} {
+	{{range .Fields}}
+	// {{.Description}}
+	{{.NameUpperCamelCase}} {{.TypeField}} `json:"{{.NameSnakeCase}}{{if not .Required}},omitempty{{end}}"`
+	{{else}} {{if .List}} Is{{.NameUpperCamelCase}}() {{end}} {{end}}
+}{{if and .List (not .Fields)}}{{$obj := .}}
+{{range .List}}
+func (x {{.}}) Is{{$obj.NameUpperCamelCase}}() {}
+{{end}}
+{{end}}
+{{end}}

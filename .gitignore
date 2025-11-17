@@ -1,2 +1,5 @@
+.env
 input/
 output/
+internal/bot/methods.go
+pkg/types/
