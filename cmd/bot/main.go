@@ -1,17 +1,12 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"gote/internal/bot"
+	c "gote/internal/commands"
+	h "gote/internal/handlers"
 	"gote/internal/utils/env"
-	"gote/pkg/types"
 	"os"
 )
-
-func StartHandler(ctx context.Context, update types.Update) {
-	fmt.Println("Я сказала стартуем!")
-}
 
 func main() {
 	_ = env.Load(".env")
@@ -20,15 +15,19 @@ func main() {
 		panic("Токен отсутствует")
 	}
 
-	bot := bot.NewBot(token)
-	bot.AddCommand("/start", StartHandler)
-	ctx := context.Background()
-	user, err := bot.GetMe(ctx, types.GetMe{})
-	if err != nil {
-		fmt.Println("Ошибка GetMe:", err)
-	}
+	b := bot.NewBot(token)
 
-	fmt.Printf("Бот: %s (@%s), ID: %d\n", user.FirstName, user.Username, user.Id)
+	commands := c.NewCommands()
+	commands.Add("/start", StartHandler)
+	b.WithCommands(&commands)
 
-	bot.RunUpdate()
+	handlers := h.NewHandlers()
+	handlers.Add(h.Message, MessageHandler)
+	b.WithHandlers(&handlers)
+
+	stateMachine := createStateMachine()
+
+	b.WithState(stateMachine)
+
+	b.RunUpdate()
 }

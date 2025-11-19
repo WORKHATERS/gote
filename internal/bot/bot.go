@@ -3,6 +3,9 @@ package bot
 import (
 	"context"
 	"fmt"
+	"gote/internal/commands"
+	"gote/internal/handlers"
+	"gote/internal/state"
 	"gote/pkg/types"
 	"log"
 )
@@ -11,52 +14,29 @@ type Bot struct {
 	Token        string
 	ctx          context.Context
 	offset       int64
-	Commands     map[string]Handler
-	Handlers     map[string]Handler
-	StateMachine StateMachine
+	Commands     *commands.Commands
+	Handlers     *handlers.Handlers
+	StateMachine *state.StateMachine
 }
-
-func (b *Bot) AddCommand(text string, handler Handler) {
-	b.Commands[text] = handler
-}
-
-type Handler func(context.Context, types.Update)
 
 func NewBot(token string) *Bot {
-	startState := State{
-		Name:      "Старт",
-		Condition: "/start",
-	}
-
-	endState := State{
-		Name:      "Конец",
-		Condition: "/end",
-	}
-
-	menuState := State{
-		Name:      "Меню",
-		Condition: "/menu",
-	}
-
-	startState.Children = append(startState.Children, &endState)
-	endState.Children = append(endState.Children, &menuState)
-	menuState.Children = append(menuState.Children, []*State{
-		&startState,
-		&endState,
-	}...)
-
 	bot := &Bot{
 		Token: token,
 		ctx:   context.Background(),
 	}
-	bot.Commands = map[string]Handler{}
-	bot.Handlers = map[string]Handler{}
-	bot.StateMachine = StateMachine{
-		States:     map[int64]*State{},
-		StartState: &startState,
-		ResetState: &menuState,
-	}
 	return bot
+}
+
+func (b *Bot) WithCommands(commands *commands.Commands) {
+	b.Commands = commands
+}
+
+func (b *Bot) WithHandlers(handlers *handlers.Handlers) {
+	b.Handlers = handlers
+}
+
+func (b *Bot) WithState(stateMachine *state.StateMachine) {
+	b.StateMachine = stateMachine
 }
 
 func (bot *Bot) RunUpdate() {
@@ -71,7 +51,7 @@ func (bot *Bot) RunUpdate() {
 				Offset:  bot.offset,
 			})
 			if err != nil {
-				log.Println("Чота пошло не так")
+				log.Println("Не получилось получить Update")
 				return
 			}
 

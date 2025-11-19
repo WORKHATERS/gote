@@ -1,18 +1,40 @@
-package bot
+package state
 
 import "gote/pkg/types"
 
+type States map[int64]*State
+
 type StateMachine struct {
+	States     States
 	StartState *State
-	States     map[int64]*State
 	ResetState *State
 }
 
 type State struct {
 	Name      string
 	Condition string
-	Parent    *State
-	Children  []*State
+	parent    *State
+	children  []*State
+}
+
+func NewState(name, condition string) *State {
+	return &State{
+		Name:      name,
+		Condition: condition,
+	}
+}
+
+func (s *State) AddChildren(state *State) {
+	s.children = append(s.children, state)
+	state.parent = s
+}
+
+func NewStateMachine(start *State, reset *State) *StateMachine {
+	return &StateMachine{
+		States:     States{},
+		StartState: start,
+		ResetState: reset,
+	}
 }
 
 func (sm *StateMachine) SetState(update *types.Update) bool {
@@ -24,7 +46,7 @@ func (sm *StateMachine) SetState(update *types.Update) bool {
 		return false
 	}
 
-	children := state.Children
+	children := state.children
 	if len(children) == 0 {
 		return false
 	}
