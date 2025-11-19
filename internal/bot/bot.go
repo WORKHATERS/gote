@@ -57,8 +57,23 @@ func (bot *Bot) RunUpdate() {
 
 			go func(ctx context.Context, updates []types.Update) {
 				for _, update := range updates {
+					msg := update.Message
+					if msg == nil {
+						continue
+					}
 					id := update.Message.Chat.Id
-					bot.StateMachine.SetState(&update)
+
+					text := msg.Text
+					if string(text[0]) == "/" {
+						handlerFunc, ok := (*bot.Commands)[text]
+						if ok {
+							handlerFunc(ctx, update)
+							continue
+						}
+					}
+					if bot.StateMachine != nil {
+						bot.StateMachine.SetState(&update)
+					}
 					fmt.Println(bot.StateMachine.GetState(id))
 				}
 			}(bot.ctx, response)
