@@ -1,13 +1,13 @@
 package state
 
 import (
-	"gote/internal/utils/ctx"
+	"context"
 	"gote/pkg/types"
 )
 
 type UsersState map[int64]*State
 type States map[string]*State
-type Action func(ctx.CustomContext, *types.Update, *StateMachine)
+type Action func(context.Context, *types.Update, *StateMachine)
 
 type StateMachine struct {
 	UsersState UsersState
@@ -48,7 +48,7 @@ func NewStateMachine(start *State, reset *State) *StateMachine {
 	}
 }
 
-func (sm *StateMachine) NextState(ctx ctx.CustomContext, update *types.Update) bool {
+func (sm *StateMachine) NextState(ctx context.Context, update *types.Update) bool {
 	id := update.Message.Chat.Id
 	text := update.Message.Text
 	state, ok := sm.UsersState[id]

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	gotebot "gote/internal/bot"
-	"gote/internal/utils/ctx"
 	"gote/internal/utils/env"
 	"gote/pkg/methods"
 	"gote/pkg/types"
@@ -18,10 +17,12 @@ func main() {
 		panic("Токен отсутствует")
 	}
 
-	ctx := ctx.CustomContext{
-		Token:     token,
-		GoContext: context.Background(),
-	}
+	// ctx := ctx.CustomContext{
+	// 	Token:     token,
+	// 	GoContext: context.Background(),
+	// }
+	ctxClose, closeFunc := context.WithCancel(context.Background())
+	ctx := context.WithValue(ctxClose, "token", token)
 
 	bot := gotebot.NewBot(ctx)
 
@@ -34,4 +35,5 @@ func main() {
 	bot.WithState(stateMachine)
 
 	bot.RunUpdate()
+	closeFunc()
 }

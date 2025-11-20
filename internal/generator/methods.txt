@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"gote/pkg/types"
 	"gote/internal/utils"
-	"gote/internal/utils/ctx"
+	"context"
 )
 
 const URL = "https://api.telegram.org/bot"
@@ -15,14 +15,14 @@ const URL = "https://api.telegram.org/bot"
 // {{.Note}}
 //{{else}}// {{end}}
 // https://core.telegram.org/bots/api#{{.Link}}
-func {{.NameUpperCamelCase}} (ctx ctx.CustomContext, param types.{{.NameUpperCamelCase}}) ({{.ReturnType}}, error) {
+func {{.NameUpperCamelCase}} (ctx context.Context, param types.{{.NameUpperCamelCase}}) ({{.ReturnType}}, error) {
 	data, err := json.Marshal(param)
 	if err != nil {
 		return {{.ReturnValue}}, err
 	}
 	
-	url := URL + ctx.Token + "/{{.NameUpperCamelCase}}"
-	resp, err := utils.RequestWithContext(ctx.GoContext, url, data)
+	url := URL + ctx.Value("token").(string)+ "/{{.NameUpperCamelCase}}"
+	resp, err := utils.RequestWithContext(ctx, url, data)
 	if err != nil {
 		return {{.ReturnValue}}, err
 	}	

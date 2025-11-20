@@ -13,12 +13,12 @@ type TgObject struct {
 	Name               string
 	NameUpperCamelCase string
 	Description        string
-	List               []string
 	Note               string
 	ReturnType         string
-	IsPrimitiveType    bool
 	ReturnValue        string
+	List               []string
 	Fields             []TgField
+	IsPrimitiveType    bool
 }
 
 type TgField struct {

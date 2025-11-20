@@ -1,26 +1,25 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"gote/internal/commands"
 	"gote/internal/handlers"
 	"gote/internal/state"
-	"gote/internal/utils/ctx"
 	"gote/pkg/methods"
 	"gote/pkg/types"
 	"log"
 )
 
 type Bot struct {
-	ctx          ctx.CustomContext
+	ctx          context.Context
 	offset       int64
 	Commands     *commands.Commands
 	Handlers     *handlers.Handlers
 	StateMachine *state.StateMachine
-	// enabledModules 	 []string
 }
 
-func NewBot(ctx ctx.CustomContext) *Bot {
+func NewBot(ctx context.Context) *Bot {
 	bot := &Bot{
 		ctx:      ctx,
 		Commands: &commands.Commands{},
@@ -32,14 +31,6 @@ func (bot *Bot) OnCommand(command string, handler handlers.HandlerFunc) {
 	(*bot.Commands)[command] = handler
 }
 
-// func (b *Bot) WithCommands(commands *commands.Commands) {
-// 	b.Commands = commands
-// }
-
-// func (b *Bot) WithHandlers(handlers *handlers.Handlers) {
-// 	b.Handlers = handlers
-// }
-
 func (b *Bot) WithState(stateMachine *state.StateMachine) {
 	b.StateMachine = stateMachine
 }
@@ -47,7 +38,7 @@ func (b *Bot) WithState(stateMachine *state.StateMachine) {
 func (bot *Bot) RunUpdate() {
 	for {
 		select {
-		case <-bot.ctx.GoContext.Done():
+		case <-bot.ctx.Done():
 			return
 		default:
 			response, err := methods.GetUpdates(bot.ctx, types.GetUpdates{
@@ -60,7 +51,7 @@ func (bot *Bot) RunUpdate() {
 				return
 			}
 
-			go func(ctx ctx.CustomContext, updates []types.Update) {
+			go func(ctx context.Context, updates []types.Update) {
 				for _, update := range updates {
 					msg := update.Message
 					if msg == nil {
@@ -73,7 +64,7 @@ func (bot *Bot) RunUpdate() {
 					if ok {
 						// bot.StateMachine.UsersState[id]
 						// bot.StateMachine.UsersState[id].Action(ctx, &update)
-						handlerFunc(ctx.GoContext, update)
+						handlerFunc(ctx, update)
 						continue
 					}
 

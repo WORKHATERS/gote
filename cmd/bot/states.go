@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"gote/internal/state"
 	s "gote/internal/state"
-	"gote/internal/utils/ctx"
 	"gote/pkg/methods"
 	"gote/pkg/types"
 )
@@ -36,18 +36,18 @@ func createStateMachine() *s.StateMachine {
 	return s.NewStateMachine(startState, startState)
 }
 
-func startAction(ctx ctx.CustomContext, update *types.Update, sm *state.StateMachine) {
+func startAction(ctx context.Context, update *types.Update, sm *state.StateMachine) {
 	sm.NextState(ctx, update)
 }
 
-func requestName(ctx ctx.CustomContext, update *types.Update, sm *state.StateMachine) {
+func requestName(ctx context.Context, update *types.Update, sm *state.StateMachine) {
 	methods.SendMessage(ctx, types.SendMessage{
 		ChatId: update.Message.Chat.Id,
 		Text:   "Введите имя: ",
 	})
 }
 
-func setName(ctx ctx.CustomContext, update *types.Update, sm *state.StateMachine) {
+func setName(ctx context.Context, update *types.Update, sm *state.StateMachine) {
 	methods.SendMessage(ctx, types.SendMessage{
 		ChatId: update.Message.Chat.Id,
 		Text:   "Имя записано",
@@ -55,7 +55,7 @@ func setName(ctx ctx.CustomContext, update *types.Update, sm *state.StateMachine
 	sm.NextState(ctx, update)
 }
 
-func requestMail(ctx ctx.CustomContext, update *types.Update, sm *state.StateMachine) {
+func requestMail(ctx context.Context, update *types.Update, sm *state.StateMachine) {
 	methods.SendMessage(ctx, types.SendMessage{
 		ChatId: update.Message.Chat.Id,
 		Text:   "Введите почту: ",
