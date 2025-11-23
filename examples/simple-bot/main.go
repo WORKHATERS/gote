@@ -31,9 +31,10 @@ func main() {
 
 	// создание бота
 	bot := gb.NewBot(ctx, gb.Config{
-		Token:   token,
-		Limit:   100,
-		Timeout: 50,
+		Token:        token,
+		Limit:        100,
+		Timeout:      50,
+		WorkersCount: 100,
 	})
 
 	// добавление зависимостей (DI)
