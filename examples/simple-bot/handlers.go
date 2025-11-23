@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"gote/internal/bot"
+	"gote/pkg/bot"
 	"gote/pkg/types"
 )
 
 func RequestName(ctx context.Context, update *types.Update, bot *bot.Bot) {
 	id := update.Message.Chat.Id
 	fmt.Println("Введите имя:")
-
 	bot.SetState(id, writeNameState)
 }
 

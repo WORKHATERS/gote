@@ -1,14 +1,16 @@
-package generator
+package main
 
 import (
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"text/template"
 	"unicode"
 )
 
-type TgObject struct {
+type tgObject struct {
 	Link               string
 	Name               string
 	NameUpperCamelCase string
@@ -17,11 +19,11 @@ type TgObject struct {
 	ReturnType         string
 	ReturnValue        string
 	List               []string
-	Fields             []TgField
+	Fields             []tgField
 	IsPrimitiveType    bool
 }
 
-type TgField struct {
+type tgField struct {
 	NameSnakeCase      string
 	NameUpperCamelCase string
 	TypeField          string
@@ -29,21 +31,21 @@ type TgField struct {
 	Description        string
 }
 
-func Generate() {
-	types := []TgObject{}
-	params := []TgObject{}
+func main() {
+	types := []tgObject{}
+	params := []tgObject{}
 
-	data, err := os.ReadFile("./input/doca.html")
+	data, err := getHTML("https://core.telegram.org/bots/api")
 	if err != nil {
 		panic("Не могу прочитать файл")
 	}
-	dataString := string(data) + "<h4>"
+	data += "<h4>"
 
 	// перебор блоков от h4 до h4
 	for {
 
 		// блок от названия до названия
-		block := getTagData(dataString, "<h4>", "<h4>")
+		block := getTagData(data, "<h4>", "<h4>")
 		if block == nil {
 			break
 		}
@@ -60,7 +62,7 @@ func Generate() {
 		// название
 		name := getTagData(block.data, "</a>", "</h4>")
 		if strings.Contains(strings.Trim(name.data, " "), " ") {
-			dataString = dataString[block.indexEnd:]
+			data = data[block.indexEnd:]
 			continue
 		}
 
@@ -82,7 +84,7 @@ func Generate() {
 		}
 
 		// Telegram объект
-		tgObject := TgObject{
+		tgObject := tgObject{
 			Link:               link,
 			Name:               clearString(name.data),
 			NameUpperCamelCase: toUpperCamelCase(clearString(name.data)),
@@ -114,17 +116,16 @@ func Generate() {
 				}
 			}
 			tgObject.ReturnValue = returnValue
-
 		}
 
 		// таблица
 		table := getTagData(block.data, "<tbody>", "</tbody>")
 		if table == nil {
-			table = &TagDataResult{}
+			table = &tagDataResult{}
 		}
 
 		// перебор строк
-		var fields []TgField
+		var fields []tgField
 		for {
 			row := getTagData(table.data, "<tr>", "</tr>")
 			if row == nil {
@@ -164,7 +165,7 @@ func Generate() {
 				fieldDescription = clearString(cells[3])
 			}
 
-			fields = append(fields, TgField{
+			fields = append(fields, tgField{
 				NameSnakeCase:      fieldNameSnakeCase,
 				NameUpperCamelCase: fieldNameUpperCamelCase,
 				TypeField:          fieldType,
@@ -185,29 +186,35 @@ func Generate() {
 		}
 
 		// срез всего файла
-		dataString = dataString[block.indexEnd:]
+		data = data[block.indexEnd:]
 	}
 
 	type TemplateData struct {
 		Name       string
 		Path       string
 		OutputPath string
-		Data       []TgObject
+		Data       []tgObject
 	}
 
-	tamplatesPath := "./internal/generator/"
+	tamplatesPath := "./templates/"
+	outputDir := "./pkg/"
+	typesDir := "types/"
+	methodsDir := "api/"
 	templatesData := []TemplateData{
-		{Name: "types", Path: tamplatesPath, OutputPath: "./pkg/types/", Data: types},
-		{Name: "params", Path: tamplatesPath, OutputPath: "./pkg/types/", Data: params},
-		{Name: "methods", Path: tamplatesPath, OutputPath: "./pkg/methods/", Data: params},
+		{Name: "types", Path: tamplatesPath, OutputPath: outputDir + typesDir, Data: types},
+		{Name: "params", Path: tamplatesPath, OutputPath: outputDir + typesDir, Data: params},
+		{Name: "methods", Path: tamplatesPath, OutputPath: outputDir + methodsDir, Data: params},
 	}
+
+	_ = os.Mkdir(outputDir+typesDir, os.ModePerm)
+	_ = os.Mkdir(outputDir+methodsDir, os.ModePerm)
 
 	for _, td := range templatesData {
 		// создание шаблона
 		tmpl := createTamplate(td.Path + td.Name + ".txt")
 
 		// создание файла для записи
-		f, err := os.Create(td.OutputPath + td.Name + ".go")
+		f, err := os.Create(td.OutputPath + "gen_" + td.Name + ".go")
 		if err != nil {
 			panic("Не получилось создать файл")
 		}
@@ -236,12 +243,12 @@ func createTamplate(path string) *template.Template {
 	return tmpl
 }
 
-type TagDataResult struct {
+type tagDataResult struct {
 	indexEnd int
 	data     string
 }
 
-func getTagData(dataString, tagStart, tagEnd string) *TagDataResult {
+func getTagData(dataString, tagStart, tagEnd string) *tagDataResult {
 	indexStart := strings.Index(dataString, tagStart[:len(tagStart)-1])
 	if indexStart == -1 {
 		return nil
@@ -259,7 +266,7 @@ func getTagData(dataString, tagStart, tagEnd string) *TagDataResult {
 		indexEnd = indexStart + indexOffset
 	}
 
-	result := &TagDataResult{
+	result := &tagDataResult{
 		indexEnd: indexEnd,
 		data:     dataString[indexStart:indexEnd],
 	}
@@ -416,4 +423,19 @@ func makeListFromTags(text string) []string {
 	}
 
 	return listTags
+}
+
+func getHTML(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }

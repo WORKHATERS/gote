@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	gotebot "gote/internal/bot"
-	"gote/internal/utils/env"
+	"gote/internal/env"
+	gotebot "gote/pkg/bot"
 	"os"
 )
 
@@ -21,10 +21,10 @@ func main() {
 		panic("Токен отсутствует")
 	}
 
-	ctxClose, closeFunc := context.WithCancel(context.Background())
-	ctx := context.WithValue(ctxClose, "token", token)
+	ctx, close := context.WithCancel(context.Background())
+	defer close()
 
-	bot := gotebot.NewBot(ctx)
+	bot := gotebot.NewBot(ctx, token)
 
 	bot.OnState(startState, RequestName)
 	bot.OnState(writeNameState, WriteName)
@@ -33,6 +33,5 @@ func main() {
 
 	bot.OnCommand("/start", startState)
 
-	bot.RunUpdate()
-	closeFunc()
+	bot.Run()
 }

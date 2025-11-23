@@ -1,33 +1,38 @@
-package methods
+package api
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"gote/pkg/types"
-	"gote/internal/utils"
-	"context"
+	"net/http"
 )
-
-const URL = "https://api.telegram.org/bot"
-
 {{range .}}
 // {{.Description}}
 {{if .Note}}//
 // {{.Note}}
 //{{else}}// {{end}}
 // https://core.telegram.org/bots/api#{{.Link}}
-func {{.NameUpperCamelCase}} (ctx context.Context, param types.{{.NameUpperCamelCase}}) ({{.ReturnType}}, error) {
+func (api *API) {{.NameUpperCamelCase}}(ctx context.Context, param types.{{.NameUpperCamelCase}}) ({{.ReturnType}}, error) {
 	data, err := json.Marshal(param)
 	if err != nil {
 		return {{.ReturnValue}}, err
 	}
 	
-	url := URL + ctx.Value("token").(string)+ "/{{.NameUpperCamelCase}}"
-	resp, err := utils.RequestWithContext(ctx, url, data)
+	url := URL + api.token + "/{{.NameUpperCamelCase}}"
+	req, err := http.NewRequestWithContext(ctx, "GET", url, bytes.NewBuffer(data))
 	if err != nil {
 		return {{.ReturnValue}}, err
-	}	
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := api.client.Do(req)
+	if err != nil {
+		return {{.ReturnValue}}, err
+	}
 	
-	var result utils.TGResponse[{{.ReturnType}}]
+	var result TGResponse[{{.ReturnType}}]
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return {{.ReturnValue}}, err
 	}

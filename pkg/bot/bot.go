@@ -2,8 +2,7 @@ package bot
 
 import (
 	"context"
-	"fmt"
-	"gote/pkg/methods"
+	"gote/pkg/api"
 	"gote/pkg/types"
 	"log"
 )
@@ -11,36 +10,37 @@ import (
 type Bot struct {
 	ctx        context.Context
 	offset     int64
+	API        *api.API
 	States     *States
 	UsersState *UsersState
 }
 
-func NewBot(ctx context.Context) *Bot {
-	bot := &Bot{
+func NewBot(ctx context.Context, token string) *Bot {
+	return &Bot{
 		ctx:        ctx,
+		API:        api.NewAPI(token),
 		States:     &States{},
 		UsersState: &UsersState{},
 	}
-	return bot
 }
 
 func (bot *Bot) OnCommand(command string, stateName string) {
 	(*bot.States)[command] = (*bot.States)[stateName]
 }
 
-func (bot *Bot) RunUpdate() {
+func (bot *Bot) Run() {
 	for {
 		select {
 		case <-bot.ctx.Done():
 			return
 		default:
-			response, err := methods.GetUpdates(bot.ctx, types.GetUpdates{
+			response, err := bot.API.GetUpdates(bot.ctx, types.GetUpdates{
 				Limit:   100,
 				Timeout: 50,
 				Offset:  bot.offset,
 			})
 			if err != nil {
-				log.Println("Не получилось получить Update")
+				log.Println("Ошибка получения Update")
 				return
 			}
 
@@ -63,7 +63,6 @@ func (bot *Bot) RunUpdate() {
 
 					userState := (*bot.UsersState)[id]
 					if userState != nil {
-						fmt.Println(userState.Name)
 						userState.Handle(ctx, &update, bot)
 					}
 				}

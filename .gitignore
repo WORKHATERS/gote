@@ -1,5 +1,2 @@
 .env
-input/
-output/
-pkg/methods/methods.go
-pkg/types/
+*/*/gen_*
