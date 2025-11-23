@@ -8,6 +8,12 @@ import (
 )
 
 func RequestName(ctx context.Context, update *types.Update, bot *gotebot.Bot) {
+	myService, ok := gotebot.Resolve[MyService](bot.Dependencies)
+	if !ok {
+		fmt.Println("Не нашел сервис")
+	}
+
+	myService.SayHello()
 	id := update.Message.Chat.Id
 	fmt.Println("Введите имя:")
 	bot.State.SetState(id, "writeNameState")

@@ -2,11 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"gote/internal/env"
-	gotebot "gote/pkg/bot"
+	gb "gote/pkg/bot"
 	"log"
 	"os"
 )
+
+type MyService struct {
+	Name string
+}
+
+func (ms MyService) SayHello() {
+	fmt.Println("Hello,", ms.Name)
+}
 
 func main() {
 	// получение ключа бота из файла .env
@@ -21,11 +30,19 @@ func main() {
 	defer close()
 
 	// создание бота
-	bot := gotebot.NewBot(ctx, gotebot.Config{
+	bot := gb.NewBot(ctx, gb.Config{
 		Token:   token,
 		Limit:   100,
 		Timeout: 50,
 	})
+
+	// добавление зависимостей (DI)
+	deps := gb.NewDependencies()
+
+	myService := MyService{"My Services"}
+	deps.Provide(myService)
+
+	bot.AddDependencies(deps)
 
 	// создание состояний
 	startState := bot.State.NewState("start", RequestName)

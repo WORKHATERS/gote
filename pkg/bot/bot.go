@@ -20,6 +20,7 @@ type Bot struct {
 	API          *api.API
 	State        *StateStore
 	Store        *Store
+	Dependencies *Dependencies
 }
 
 func NewBot(ctx context.Context, config Config) *Bot {
@@ -41,6 +42,10 @@ func NewBot(ctx context.Context, config Config) *Bot {
 			AllowedUpdates: config.AllowedUpdates,
 		},
 	}
+}
+
+func (bot *Bot) AddDependencies(dd *Dependencies) {
+	bot.Dependencies = dd
 }
 
 func (bot *Bot) Run() error {
