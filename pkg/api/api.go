@@ -20,7 +20,7 @@ type API struct {
 	client *http.Client
 }
 
-func NewAPI(token string) *API {
+func New(token string) *API {
 	return &API{
 		token:  token,
 		client: &http.Client{},

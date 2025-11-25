@@ -1,7 +1,8 @@
-package bot
+package state
 
 import (
 	"context"
+	"gote/pkg/core"
 	"gote/pkg/types"
 )
 
@@ -17,13 +18,20 @@ type State struct {
 
 type States map[string]*State
 type UsersState map[int64]*State
-type Handler func(context.Context, *types.Update, *Bot)
+type Handler func(context.Context, *types.Update, *core.BotContext)
 
-func NewStateStore() *StateStore {
+func New() *StateStore {
 	return &StateStore{
 		States:     &States{},
 		UsersState: &UsersState{},
 	}
+}
+
+func (s *StateStore) Get(chatID int64) string {
+	return ""
+}
+
+func (s *StateStore) Set(chatID int64, state string) {
 }
 
 func (s *StateStore) NewState(name string, handler Handler) *State {

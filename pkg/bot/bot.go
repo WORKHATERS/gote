@@ -2,152 +2,82 @@ package bot
 
 import (
 	"context"
-	"gote/pkg/api"
-	"gote/pkg/types"
 	"log"
-	"time"
+
+	"gote/pkg/api"
+	"gote/pkg/core"
+	// "gote/pkg/types"
 )
 
-type Config struct {
-	Token           string
-	Limit           int64
-	Timeout         int64
-	Offset          int64
-	AllowedUpdates  []string
-	UpdatesCapacity int64
-}
-
 type Bot struct {
-	ctx             context.Context
-	API             *api.API
-	State           *StateStore
-	Store           *Store
-	Dependencies    *Dependencies
-	updatesCapacity int64
-	updateParams    types.GetUpdates
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	api    core.TelegramAPI
+	logger core.Logger
+
+	// router core.Router
+	// state  core.MemoryState
+	// store  core.MemoryStore
+	// deps   core.Dependencies
 }
 
-func NewBot(ctx context.Context, config Config) *Bot {
-	if config.Limit <= 0 {
-		config.Limit = 100
-	}
-	if config.Timeout <= 0 {
-		config.Timeout = 30
-	}
-	if config.UpdatesCapacity <= 0 {
-		config.UpdatesCapacity = 100
+func New(ctx context.Context, token string, opts ...Option) *Bot {
+	ctx, cancel := context.WithCancel(ctx)
+
+	b := &Bot{
+		ctx:    ctx,
+		cancel: cancel,
+		api:    api.New(token),
+		logger: log.Default(),
+		// router: router.New(),
+		// state:  state.New(),
+		// store:  store.New(),
+		// deps:   di.New(),
 	}
 
-	return &Bot{
-		ctx:             ctx,
-		API:             api.NewAPI(config.Token),
-		State:           NewStateStore(),
-		Store:           NewStore(),
-		updatesCapacity: config.UpdatesCapacity,
-		updateParams: types.GetUpdates{
-			Limit:          config.Limit,
-			Timeout:        config.Timeout,
-			Offset:         config.Offset,
-			AllowedUpdates: config.AllowedUpdates,
-		},
+	for _, opt := range opts {
+		opt(b)
 	}
+
+	return b
 }
 
-func (bot *Bot) AddDependencies(dd *Dependencies) {
-	bot.Dependencies = dd
+type Option func(*Bot)
+
+func WithLogger(l core.Logger) Option {
+	return func(b *Bot) { b.logger = l }
 }
 
-type UpdatesChannel <-chan types.Update
+// func WithState(s core.MemoryState) Option {
+// 	return func(b *Bot) { b.state = s }
+// }
 
-func (bot *Bot) GetUpdatesChannel() UpdatesChannel {
-	ch := make(chan types.Update, bot.updatesCapacity)
+// func WithStore(s core.MemoryStore) Option {
+// 	return func(b *Bot) { b.store = s }
+// }
 
-	go func() {
-		for {
-			if bot.ctx.Err() != nil {
-				close(ch)
-				return
-			}
+// func WithDeps(d core.Dependencies) Option {
+// 	return func(b *Bot) { b.deps = d }
+// }
 
-			updates, err := bot.API.GetUpdates(bot.ctx, bot.updateParams)
-			if err != nil {
-				log.Println(err)
-				log.Println("Ошибка получения обновлений, следующая попытка через 5 секунд...")
-				time.Sleep(time.Second * 5)
-				continue
-			}
+// func WithRouter(r core.Router) Option {
+// 	return func(b *Bot) { b.router = r }
+// }
 
-			for _, update := range updates {
-				if update.UpdateId >= bot.updateParams.Offset {
-					bot.updateParams.Offset = update.UpdateId + 1
-					ch <- update
-				}
-			}
-		}
-	}()
+// func (b *Bot) Handle(update types.Update) {
+// 	b.router.Process(b.ctx, b, update)
+// }
 
-	return ch
-}
+func (b *Bot) API() core.TelegramAPI    { return b.api }
+func (b *Bot) Context() context.Context { return b.ctx }
+func (b *Bot) Logger() core.Logger      { return b.logger }
 
-func getChatID(u types.Update) (int64, bool) {
-	var id int64
-	founded := true
+// func (b *Bot) Router() core.Router      { return b.router }
+// func (b *Bot) State() core.MemoryState  { return b.state }
+// func (b *Bot) Store() core.MemoryStore  { return b.store }
+// func (b *Bot) Deps() core.Dependencies  { return b.deps }
 
-	switch {
-	case u.Message != nil:
-		id = u.Message.Chat.Id
-
-	case u.EditedMessage != nil:
-		id = u.EditedMessage.Chat.Id
-
-	case u.ChannelPost != nil:
-		id = u.ChannelPost.Chat.Id
-
-	case u.EditedChannelPost != nil:
-		id = u.EditedChannelPost.Chat.Id
-
-	case u.BusinessMessage != nil:
-		id = u.BusinessMessage.Chat.Id
-
-	case u.EditedBusinessMessage != nil:
-		id = u.EditedBusinessMessage.Chat.Id
-
-	case u.DeletedBusinessMessages != nil:
-		id = u.DeletedBusinessMessages.Chat.Id
-
-	case u.CallbackQuery != nil && u.CallbackQuery.Message != nil:
-		msg := (*u.CallbackQuery.Message)
-		switch m := msg.(type) {
-		case *types.Message:
-			id = m.Chat.Id
-		case *types.InaccessibleMessage:
-			id = m.Chat.Id
-		}
-
-	case u.MyChatMember != nil:
-		id = u.MyChatMember.Chat.Id
-
-	case u.ChatMember != nil:
-		id = u.ChatMember.Chat.Id
-
-	case u.ChatJoinRequest != nil:
-		id = u.ChatJoinRequest.Chat.Id
-
-	case u.MessageReaction != nil:
-		id = u.MessageReaction.Chat.Id
-
-	case u.MessageReactionCount != nil:
-		id = u.MessageReactionCount.Chat.Id
-
-	case u.ChatBoost != nil:
-		id = u.ChatBoost.Chat.Id
-
-	case u.RemovedChatBoost != nil:
-		id = u.RemovedChatBoost.Chat.Id
-
-	default:
-		founded = false
-	}
-
-	return id, founded
+func (b *Bot) Stop() {
+	b.cancel()
 }

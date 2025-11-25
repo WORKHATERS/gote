@@ -1,4 +1,4 @@
-package bot
+package di
 
 import "reflect"
 
@@ -6,7 +6,7 @@ type Dependencies struct {
 	services map[reflect.Type]reflect.Value
 }
 
-func NewDependencies() *Dependencies {
+func New() *Dependencies {
 	return &Dependencies{services: make(map[reflect.Type]reflect.Value)}
 }
 

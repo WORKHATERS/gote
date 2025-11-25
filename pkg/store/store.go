@@ -1,4 +1,4 @@
-package bot
+package store
 
 type data map[string]any
 type usersStore map[int64]data
@@ -7,11 +7,16 @@ type Store struct {
 	usersStore usersStore
 }
 
-func NewStore() *Store {
+func New() *Store {
 	return &Store{
 		usersStore: usersStore{},
 	}
 }
+
+func (s *Store) Get(key string) any {
+	return ""
+}
+func (s *Store) Set(key string, value any) {}
 
 func (s *Store) AddData(id int64, key string, value any) {
 	userStore, ok := s.usersStore[id]
