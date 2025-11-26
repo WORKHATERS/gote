@@ -58,7 +58,7 @@ func WithHTTPClient(c HTTPClient) Option {
 	return func(b *Bot) { b.client = c }
 }
 
-// WithHTTPClient функция установки значения для дебаг режима
+// WithDebug функция установки значения для дебаг режима
 func WithDebug(on bool) Option {
 	return func(b *Bot) { b.debug = on }
 }

@@ -71,7 +71,7 @@ func (p *Poller) Start() <-chan types.Update {
 
 			updates, err := p.bot.GetUpdates(p.bot.Context(), p.params)
 			if err != nil {
-				p.bot.Logger().Error("Ошибка получения обновлений: %v", err)
+				p.bot.Logger().Error("Ошибка получения обновлений", err)
 				select {
 				case <-time.After(p.errorBackoff):
 				case <-p.bot.Context().Done():
