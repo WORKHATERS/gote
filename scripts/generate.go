@@ -29,6 +29,7 @@ type tgField struct {
 	TypeField          string
 	Required           bool
 	Description        string
+	RuDescription      string
 }
 
 func main() {
@@ -171,6 +172,7 @@ func main() {
 				TypeField:          fieldType,
 				Required:           fieldRequire,
 				Description:        fieldDescription,
+				// RuDescription:      translateDescription(fieldDescription),
 			})
 
 			// срез таблицы
@@ -278,12 +280,12 @@ func getAttributeValue(text string, attr string) string {
 	indexAttr := strings.Index(text, attr)
 
 	offsetStart := strings.Index(text[indexAttr:], "\"")
-	indexStart := offsetStart + indexAttr + 1
+	indexStart := offsetStart + indexAttr
 
-	offsetEnd := strings.Index(text[indexStart:], "\"")
-	indexEnd := offsetEnd + indexStart
+	offsetEnd := strings.Index(text[indexStart + 1:], "\"")
+	indexEnd := offsetEnd + 1 + indexStart
 
-	value := text[indexStart+1 : indexEnd]
+	value := text[indexStart + 1: indexEnd]
 
 	return value
 }
@@ -295,8 +297,11 @@ func clearString(line string) string {
 		if indexStart == -1 || indexEnd == -1 {
 			break
 		}
-
-		line = line[:indexStart] + line[indexEnd+1:]
+		emoji := ""
+		if strings.Contains(line, "img class=\"emoji\"") {
+			emoji = getAttributeValue(line, "alt")
+		}
+		line = line[:indexStart] + emoji + line[indexEnd+1:]
 	}
 
 	line = strings.ReplaceAll(line, "\n", "")
