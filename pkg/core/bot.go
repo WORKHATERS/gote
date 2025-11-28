@@ -45,7 +45,7 @@ func NewBot(ctx context.Context, token string, opts ...Option) *Bot {
 	return b
 }
 
-// Option опциональный параметр
+// Option тип функциональных параметров
 type Option func(*Bot)
 
 // WithLogger функция установки значения для логгера

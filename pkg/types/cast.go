@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 )
 
+// CastTo функция для приведения к указанному типу
 func CastTo[T any](data any) (*T, error) {
 	jsonbody, err := json.Marshal(data)
 	if err != nil {
