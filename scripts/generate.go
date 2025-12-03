@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 	"unicode"
@@ -29,7 +30,6 @@ type tgField struct {
 	TypeField          string
 	Required           bool
 	Description        string
-	RuDescription      string
 }
 
 func main() {
@@ -40,158 +40,91 @@ func main() {
 	if err != nil {
 		panic("Не могу прочитать файл")
 	}
-	data += "<h4>"
 
-	// перебор блоков от h4 до h4
-	for {
+	reSplit := regexp.MustCompile(`(?s)<h4`)
+	parts := reSplit.Split(data, -1)
 
-		// блок от названия до названия
-		block := getTagData(data, "<h4>", "<h4>")
-		if block == nil {
-			break
-		}
+	var blocks []string
 
-		// проверка на наличие в блоке h3
-		indexH3 := strings.Index(block.data, "<h3>")
+	for _, p := range parts {
+		indexH3 := strings.Index(p, "<h3")
 		if indexH3 != -1 {
-			block.data = block.data[:indexH3]
+			p = p[:indexH3]
 		}
+		block := "<h4" + strings.TrimSpace(p)
+		blocks = append(blocks, block)
+	}
 
-		// ссылка
-		link := getAttributeValue(block.data, "href")
+	blocks = blocks[6:]
 
-		// название
-		name := getTagData(block.data, "</a>", "</h4>")
-		if strings.Contains(strings.Trim(name.data, " "), " ") {
-			data = data[block.indexEnd:]
-			continue
-		}
+	for _, b := range blocks {
+		h4Tag := getTag(b, "h4")
+		name := getContent(h4Tag)
+		link := getAttributeValue(h4Tag, "href")
 
-		// описание
-		description := getTagData(block.data, "<p>", "</p>")
+		pTag := getTag(b, "p")
+		desc := getContent(pTag)
 
-		// список
+		ulTag := getTag(b, "ul")
+		listLiTags := getChildren(ulTag, "li")
 		var list []string
-		listHtml := getTagData(block.data, "<ul>", "</ul>")
-		if listHtml != nil {
-			list = makeListFromTags(listHtml.data)
+		for _, li := range listLiTags {
+			list = append(list, getContent(li))
 		}
 
-		// заметка
-		blockquote := getTagData(block.data, "<blockquote>", "</blockquote>")
-		var note string
-		if blockquote != nil {
-			note = clearString(blockquote.data)
-		}
+		blockquote := getContent(getTag(b, "blockquote"))
 
-		// Telegram объект
-		tgObject := tgObject{
+		object := tgObject{
 			Link:               link,
-			Name:               clearString(name.data),
-			NameUpperCamelCase: toUpperCamelCase(clearString(name.data)),
-			Description:        clearString(description.data),
-			Note:               note,
+			Name:               name,
+			NameUpperCamelCase: toUpperCamelCase(name),
+			Description:        desc,
+			Note:               blockquote,
 			List:               list,
 		}
 
-		// проверка типа по первой букве имени
-		isType := unicode.IsUpper(rune(tgObject.Name[0]))
+		table := getTag(b, "tbody")
+		rows := getChildren(table, "tr")
 
-		// если метод, то добавить возвращаемый тип "ReturnType"
-		if !isType {
-			tgObject.ReturnType = searchReturnType(description.data)
-			tgObject.IsPrimitiveType = unicode.IsLower(rune(tgObject.ReturnType[0]))
-			returnValue := "nil"
-			switch tgObject.ReturnType {
-			case "bool":
-				{
-					returnValue = "false"
-				}
-			case "string":
-				{
-					returnValue = "\"\""
-				}
-			case "int64":
-				{
-					returnValue = "0"
-				}
+		fields := []tgField{}
+		for _, r := range rows {
+			cells := getChildren(r, "td")
+			fieldNameSnakeCase := getContent(cells[0])
+			fieldNameUpperCase := toUpperCamelCase(fieldNameSnakeCase)
+			field := tgField{
+				NameSnakeCase:      fieldNameSnakeCase,
+				NameUpperCamelCase: fieldNameUpperCase,
+				TypeField:          convertTypeTgToGo(fieldNameUpperCase, getContent(cells[1])),
 			}
-			tgObject.ReturnValue = returnValue
-		}
-
-		// таблица
-		table := getTagData(block.data, "<tbody>", "</tbody>")
-		if table == nil {
-			table = &tagDataResult{}
-		}
-
-		// перебор строк
-		var fields []tgField
-		for {
-			row := getTagData(table.data, "<tr>", "</tr>")
-			if row == nil {
-				break
-			}
-
-			// перебор ячеек
-			var cells []string
-			for {
-				cell := getTagData(row.data, "<td>", "</td>")
-				if cell == nil {
-					break
-				}
-				cells = append(cells, clearString(cell.data))
-
-				// срез строки
-				row.data = row.data[cell.indexEnd:]
-			}
-
-			// составление поля
-			fieldNameSnakeCase := clearString(cells[0])
-			fieldNameUpperCamelCase := toUpperCamelCase(fieldNameSnakeCase)
-			fieldType := convertTypeTgToGo(fieldNameUpperCamelCase, clearString(cells[1]))
-			var fieldRequire bool
-			var fieldDescription string
-
-			if isType {
-				fieldDescription = clearString(cells[2])
-				if !strings.Contains(fieldDescription, "Optional.") {
-					fieldRequire = true
+			if len(cells) == 3 {
+				field.Description = getContent(cells[2])
+				if !strings.Contains(field.Description, "Optional.") {
+					field.Required = true
 				}
 			} else {
-				requiredString := cells[2]
-				if requiredString == "Yes" {
-					fieldRequire = true
+				field.Description = getContent(cells[3])
+				if cells[2] == "Yes" {
+					field.Required = true
 				}
-				fieldDescription = clearString(cells[3])
+				returnType := getReturnType(pTag)
+				returnValue := getDefaultValue(returnType)
+				object.ReturnType = returnType
+				object.ReturnValue = returnValue
+				object.IsPrimitiveType = unicode.IsLower(rune(returnType[0]))
 			}
-
-			fields = append(fields, tgField{
-				NameSnakeCase:      fieldNameSnakeCase,
-				NameUpperCamelCase: fieldNameUpperCamelCase,
-				TypeField:          fieldType,
-				Required:           fieldRequire,
-				Description:        fieldDescription,
-				// RuDescription:      translateDescription(fieldDescription),
-			})
-
-			// срез таблицы
-			table.data = table.data[row.indexEnd:]
+			fields = append(fields, field)
 		}
+		object.Fields = fields
 
-		tgObject.Fields = fields
-
-		if isType {
-			types = append(types, tgObject)
+		if len(object.Fields) == 3 {
+			types = append(types, object)
 		} else {
-			params = append(params, tgObject)
+			params = append(params, object)
 		}
 
-		// срез всего файла
-		data = data[block.indexEnd:]
 	}
 
-	type templateData struct {
+	type TemplateData struct {
 		Name       string
 		Path       string
 		OutputPath string
@@ -201,8 +134,8 @@ func main() {
 	tamplatesPath := "./templates/"
 	outputDir := "./pkg/"
 	typesDir := "types/"
-	methodsDir := "core/"
-	templatesData := []templateData{
+	methodsDir := "api/"
+	templatesData := []TemplateData{
 		{Name: "types", Path: tamplatesPath, OutputPath: outputDir + typesDir, Data: types},
 		{Name: "params", Path: tamplatesPath, OutputPath: outputDir + typesDir, Data: params},
 		{Name: "methods", Path: tamplatesPath, OutputPath: outputDir + methodsDir, Data: params},
@@ -245,39 +178,29 @@ func createTamplate(path string) *template.Template {
 	return tmpl
 }
 
-type tagDataResult struct {
-	indexEnd int
-	data     string
-}
+// получение тега в виде строки
+func getTag(text, tag string) string {
+	tagStart := "<" + tag
+	tagEnd := "</" + tag + ">"
 
-func getTagData(dataString, tagStart, tagEnd string) *tagDataResult {
-	indexStart := strings.Index(dataString, tagStart[:len(tagStart)-1])
+	indexStart := strings.Index(text, tagStart)
 	if indexStart == -1 {
-		return nil
+		return ""
 	}
-	indexStart += strings.Index(dataString[indexStart:], ">") + 1
-	var indexEnd int
-	if tagEnd == "" {
-		indexEnd = len(dataString)
-	} else {
-		indexOffset := strings.Index(dataString[indexStart:], tagEnd)
-		if indexOffset == -1 {
-			return nil
-		}
-
-		indexEnd = indexStart + indexOffset
+	indexEnd := strings.Index(text, tagEnd)
+	if indexEnd == -1 {
+		return text[indexStart:]
 	}
 
-	result := &tagDataResult{
-		indexEnd: indexEnd,
-		data:     dataString[indexStart:indexEnd],
-	}
-
-	return result
+	return text[indexStart : indexEnd+len(tagEnd)]
 }
 
+// получение значения атрибута
 func getAttributeValue(text string, attr string) string {
 	indexAttr := strings.Index(text, attr)
+	if indexAttr == -1 {
+		return ""
+	}
 
 	offsetStart := strings.Index(text[indexAttr:], "\"")
 	indexStart := offsetStart + indexAttr
@@ -285,28 +208,33 @@ func getAttributeValue(text string, attr string) string {
 	offsetEnd := strings.Index(text[indexStart+1:], "\"")
 	indexEnd := offsetEnd + 1 + indexStart
 
+	if indexStart == -1 || indexEnd == -1 {
+		return ""
+	}
+
 	value := text[indexStart+1 : indexEnd]
 
 	return value
 }
 
-func clearString(line string) string {
+// получение текстового контента тега
+func getContent(text string) string {
 	for {
-		indexStart := strings.Index(line, "<")
-		indexEnd := strings.Index(line, ">")
+		indexStart := strings.Index(text, "<")
+		indexEnd := strings.Index(text, ">")
 		if indexStart == -1 || indexEnd == -1 {
 			break
 		}
 		emoji := ""
-		if strings.Contains(line, "img class=\"emoji\"") {
-			emoji = getAttributeValue(line, "alt")
+		if strings.Contains(text, "img class=\"emoji\"") {
+			emoji = getAttributeValue(text, "alt")
 		}
-		line = line[:indexStart] + emoji + line[indexEnd+1:]
+		text = text[:indexStart] + emoji + text[indexEnd+1:]
 	}
 
-	line = strings.ReplaceAll(line, "\n", "")
+	text = strings.ReplaceAll(text, "\n", "")
 
-	return strings.Trim(line, "\n")
+	return strings.Trim(text, "\n")
 }
 
 func toUpperCamelCase(name string) string {
@@ -368,7 +296,7 @@ func convertTypeTgToGo(n, t string) string {
 	return prefix + result
 }
 
-func searchReturnType(text string) string {
+func getReturnType(text string) string {
 	anchorWords := []string{
 		"On success",
 		"Returns",
@@ -400,34 +328,62 @@ func searchReturnType(text string) string {
 	}
 
 	packageName := "types"
-	innerTagData := getTagData(text, "<a>", "</a>")
-	if innerTagData != nil {
+	innerTagData := getTag(text, "a")
+	if innerTagData != "" {
 		if len(prefix) == 0 {
 			prefix = "*"
 		}
-		return prefix + packageName + "." + innerTagData.data
+		return prefix + packageName + "." + innerTagData
 	}
 
-	innerTagData = getTagData(text, "<em>", "</em>")
-	if innerTagData != nil {
-		return prefix + convertTypeTgToGo("", innerTagData.data)
+	innerTagData = getTag(text, "em")
+	if innerTagData != "" {
+		return prefix + convertTypeTgToGo("", innerTagData)
 	}
 
 	return ""
 }
 
-func makeListFromTags(text string) []string {
-	listTags := []string{}
-	for {
-		li := getTagData(text, "<li>", "</li>")
-		if li == nil {
-			break
+func getDefaultValue(t string) string {
+	returnValue := "nil"
+	switch t {
+	case "bool":
+		{
+			returnValue = "false"
 		}
-		listTags = append(listTags, clearString(li.data))
-		text = text[li.indexEnd:]
+	case "string":
+		{
+			returnValue = "\"\""
+		}
+	case "int64":
+		{
+			returnValue = "0"
+		}
+	}
+	return returnValue
+}
+
+func getChildren(text string, tag string) []string {
+	tagOpen := "<" + tag
+	tagClose := "</" + tag + ">"
+	count := strings.Count(text, tagOpen)
+	if count == 0 {
+		return []string{}
 	}
 
-	return listTags
+	var tags []string
+	for range count {
+		indexStart := strings.Index(text, tagOpen)
+		text = text[indexStart:]
+		before, after, found := strings.Cut(text, tagClose)
+		if !found {
+			break
+		}
+		tags = append(tags, before+tagClose)
+		text = after
+	}
+
+	return tags
 }
 
 func getHTML(url string) (string, error) {
