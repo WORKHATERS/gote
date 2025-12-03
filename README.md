@@ -19,25 +19,30 @@ go get github.com/MOXHATKA/gote
    package main
 
    import (
-      "context"
-      "os"
+   	"context"
 
-      "github.com/MOXHATKA/gote/pkg/core"
-      "github.com/MOXHATKA/gote/pkg/updater"
+   	"github.com/MOXHATKA/gote/pkg/core"
+   	"github.com/MOXHATKA/gote/pkg/types"
+   	"github.com/MOXHATKA/gote/pkg/updater"
    )
 
    func main() {
-      ctx, cancel := context.WithCancel(context.Background())
-      defer cancel()
+   	ctx, cancel := context.WithCancel(context.Background())
+   	defer cancel()
 
-      bot := core.NewBot(ctx, "BOT_TOKEN")
+   	bot := core.NewBot(ctx, "ВАШ_ТОКЕН_БОТА")
 
-      poller := updater.NewPoller(bot)
-      updates := poller.Start()
+   	poller := updater.NewPoller(bot)
+   	updates := poller.Start()
 
-      for u := range updates {
-        // обработка сообщений, колбеков, медиа и т.д.
-      }
+   	for u := range updates {
+   		if u.Message != nil {
+   			bot.SendMessage(ctx, types.SendMessage{
+   				ChatId: u.Message.Chat.Id,
+   				Text:   u.Message.Text,
+   			})
+   		}
+   	}
    }
    ```
 
