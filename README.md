@@ -15,36 +15,29 @@ go get github.com/MOXHATKA/gote
 
 ## Быстрый старт
 
-1. Создать файл **.env** с токеном бота:
-
-   ```
-   BOT_TOKEN=токен_из_BotFather
-   ```
-
-2. Пример минимального кода:
-
    ```go
    package main
 
    import (
-       "context"
-       "gote/pkg/core"
-       "gote/pkg/updater"
-       "os"
+      "context"
+      "os"
+
+      "github.com/MOXHATKA/gote/pkg/core"
+      "github.com/MOXHATKA/gote/pkg/updater"
    )
 
    func main() {
-       ctx, cancel := context.WithCancel(context.Background())
-       defer cancel()
+      ctx, cancel := context.WithCancel(context.Background())
+      defer cancel()
 
-       bot := core.NewBot(ctx, "BOT_TOKEN")
+      bot := core.NewBot(ctx, "BOT_TOKEN")
 
-       poller := updater.NewPoller(bot)
-       updates := poller.Start()
+      poller := updater.NewPoller(bot)
+      updates := poller.Start()
 
-       for u := range updates {
-           // обработка сообщений, колбеков, медиа и т.д.
-       }
+      for u := range updates {
+        // обработка сообщений, колбеков, медиа и т.д.
+      }
    }
    ```
 
@@ -118,7 +111,7 @@ go get github.com/MOXHATKA/gote
 
 ## Примеры
 
-Примеры доступны в папке [`examples/`](examples/).
+Примеры доступны в папке [`examples/`](examples/)
 
 ---
 
