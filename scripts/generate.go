@@ -55,11 +55,13 @@ func main() {
 		blocks = append(blocks, block)
 	}
 
-	blocks = blocks[6:]
-
 	for _, b := range blocks {
 		h4Tag := getTag(b, "h4")
 		name := getContent(h4Tag)
+		if strings.Contains(name, " ") {
+			continue
+		}
+
 		link := getAttributeValue(h4Tag, "href")
 
 		pTag := getTag(b, "p")
@@ -91,20 +93,19 @@ func main() {
 			cells := getChildren(r, "td")
 			fieldNameSnakeCase := getContent(cells[0])
 			fieldNameUpperCase := toUpperCamelCase(fieldNameSnakeCase)
-			field := tgField{
-				NameSnakeCase:      fieldNameSnakeCase,
-				NameUpperCamelCase: fieldNameUpperCase,
-				TypeField:          convertTypeTgToGo(fieldNameUpperCase, getContent(cells[1])),
-			}
+			fieldType := convertTypeTgToGo(fieldNameUpperCase, getContent(cells[1]))
+			var fieldDesc string
+			var fieldRequired bool
+
 			if len(cells) == 3 {
-				field.Description = getContent(cells[2])
-				if !strings.Contains(field.Description, "Optional.") {
-					field.Required = true
+				fieldDesc = getContent(cells[2])
+				if !strings.Contains(fieldDesc, "Optional.") {
+					fieldRequired = true
 				}
 			} else {
-				field.Description = getContent(cells[3])
+				fieldDesc = getContent(cells[3])
 				if cells[2] == "Yes" {
-					field.Required = true
+					fieldRequired = true
 				}
 				returnType := getReturnType(pTag)
 				returnValue := getDefaultValue(returnType)
@@ -112,7 +113,13 @@ func main() {
 				object.ReturnValue = returnValue
 				object.IsPrimitiveType = unicode.IsLower(rune(returnType[0]))
 			}
-			fields = append(fields, field)
+			fields = append(fields, tgField{
+				NameSnakeCase:      fieldNameSnakeCase,
+				NameUpperCamelCase: fieldNameUpperCase,
+				TypeField:          fieldType,
+				Required:           fieldRequired,
+				Description:        fieldDesc,
+			})
 		}
 		object.Fields = fields
 
@@ -338,7 +345,7 @@ func getReturnType(text string) string {
 
 	innerTagData = getTag(text, "em")
 	if innerTagData != "" {
-		return prefix + convertTypeTgToGo("", innerTagData)
+		return prefix + convertTypeTgToGo("", getContent(innerTagData))
 	}
 
 	return ""
