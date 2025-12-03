@@ -12,24 +12,24 @@ import (
 )
 
 type tgObject struct {
-	Link               string
-	Name               string
-	NameUpperCamelCase string
-	Description        string
-	Note               string
-	ReturnType         string
-	ReturnValue        string
-	List               []string
-	Fields             []tgField
-	IsPrimitiveType    bool
+	Link               string    `json:"link"`
+	Name               string    `json:"name"`
+	NameUpperCamelCase string    `json:"name_upper_camel_case"`
+	Description        string    `json:"description"`
+	Note               string    `json:"note"`
+	ReturnType         string    `json:"return_type"`
+	ReturnValue        string    `json:"return_value"`
+	List               []string  `json:"list"`
+	Fields             []tgField `json:"fields"`
+	IsPrimitiveType    bool      `json:"is_primitive_type"`
 }
 
 type tgField struct {
-	NameSnakeCase      string
-	NameUpperCamelCase string
-	TypeField          string
-	Required           bool
-	Description        string
+	NameSnakeCase      string `json:"name_snake_case"`
+	NameUpperCamelCase string `json:"name_upper_camel_case"`
+	TypeField          string `json:"type_ field"`
+	Required           bool   `json:"required"`
+	Description        string `json:"description"`
 }
 
 func main() {
@@ -58,9 +58,12 @@ func main() {
 	for _, b := range blocks {
 		h4Tag := getTag(b, "h4")
 		name := getContent(h4Tag)
+		nameUpperCamelCase := toUpperCamelCase(name)
 		if strings.Contains(name, " ") {
 			continue
 		}
+
+		isTgType := unicode.IsUpper(rune(name[0]))
 
 		link := getAttributeValue(h4Tag, "href")
 
@@ -76,15 +79,6 @@ func main() {
 
 		blockquote := getContent(getTag(b, "blockquote"))
 
-		object := tgObject{
-			Link:               link,
-			Name:               name,
-			NameUpperCamelCase: toUpperCamelCase(name),
-			Description:        desc,
-			Note:               blockquote,
-			List:               list,
-		}
-
 		table := getTag(b, "tbody")
 		rows := getChildren(table, "tr")
 
@@ -97,7 +91,7 @@ func main() {
 			var fieldDesc string
 			var fieldRequired bool
 
-			if len(cells) == 3 {
+			if isTgType {
 				fieldDesc = getContent(cells[2])
 				if !strings.Contains(fieldDesc, "Optional.") {
 					fieldRequired = true
@@ -107,11 +101,7 @@ func main() {
 				if cells[2] == "Yes" {
 					fieldRequired = true
 				}
-				returnType := getReturnType(pTag)
-				returnValue := getDefaultValue(returnType)
-				object.ReturnType = returnType
-				object.ReturnValue = returnValue
-				object.IsPrimitiveType = unicode.IsLower(rune(returnType[0]))
+
 			}
 			fields = append(fields, tgField{
 				NameSnakeCase:      fieldNameSnakeCase,
@@ -121,14 +111,27 @@ func main() {
 				Description:        fieldDesc,
 			})
 		}
-		object.Fields = fields
 
-		if len(object.Fields) == 3 {
-			types = append(types, object)
-		} else {
-			params = append(params, object)
+		object := tgObject{
+			Link:               link,
+			Name:               name,
+			NameUpperCamelCase: nameUpperCamelCase,
+			Description:        desc,
+			Note:               blockquote,
+			List:               list,
+			Fields:             fields,
 		}
 
+		if isTgType {
+			types = append(types, object)
+		} else {
+			returnType := getContent(getReturnType(pTag))
+			returnValue := getDefaultValue(returnType)
+			object.ReturnType = returnType
+			object.ReturnValue = returnValue
+			object.IsPrimitiveType = unicode.IsLower(rune(returnType[0]))
+			params = append(params, object)
+		}
 	}
 
 	type TemplateData struct {
@@ -141,7 +144,7 @@ func main() {
 	tamplatesPath := "./templates/"
 	outputDir := "./pkg/"
 	typesDir := "types/"
-	methodsDir := "api/"
+	methodsDir := "core/"
 	templatesData := []TemplateData{
 		{Name: "types", Path: tamplatesPath, OutputPath: outputDir + typesDir, Data: types},
 		{Name: "params", Path: tamplatesPath, OutputPath: outputDir + typesDir, Data: params},
