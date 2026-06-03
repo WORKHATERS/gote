@@ -3,7 +3,7 @@
 **gote** — это современная, минималистичная и удобная библиотека для работы с [Telegram Bot API](https://core.telegram.org/bots/api) на языке **Go**.
 Она предоставляет полный доступ ко всем возможностям Telegram: сообщения, медиа, клавиатуры, команды, callback-запросы, webhooks, inline-режим и многое другое.
 
-[Bot API 9.2](https://core.telegram.org/bots/api#august-15-2025) от 15 августа 2025 года.
+[Bot API 10.0](https://core.telegram.org/bots/api#may-8-2026) от 8 мая 2026 года.
 
 ---
 
