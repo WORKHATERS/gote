@@ -1,13 +1,13 @@
-# gote — Telegram Bot API для Go
+# gote — Telegram Bot API for Go
 
-**gote** — это современная, минималистичная и удобная библиотека для работы с [Telegram Bot API](https://core.telegram.org/bots/api) на языке **Go**.
-Она предоставляет полный доступ ко всем возможностям Telegram: сообщения, медиа, клавиатуры, команды, callback-запросы, webhooks, inline-режим и многое другое.
+**gote** is a modern, minimalist, and developer-friendly library for working with the Telegram Bot API in **Go**.
+It provides full access to all Telegram features: messages, media, keyboards, commands, callback queries, webhooks, inline mode, and much more.
 
-[Bot API 10.0](https://core.telegram.org/bots/api#may-8-2026) от 8 мая 2026 года.
+[Bot API 10.0](https://core.telegram.org/bots/api#may-8-2026) released on May 8, 2026.
 
 ---
 
-## Установка
+## Installation
 
 ```bash
 go get github.com/WORKHATERS/gote
@@ -15,82 +15,82 @@ go get github.com/WORKHATERS/gote
 
 ---
 
-## Быстрый старт
+## Quick Start
 
-   ```go
-   package main
+```go
+package main
 
-   import (
-   	"context"
+import (
+	"context"
 
-   	"github.com/WORKHATERS/gote/pkg/core"
-   	"github.com/WORKHATERS/gote/pkg/types"
-   	"github.com/WORKHATERS/gote/pkg/updater"
-   )
+	"github.com/WORKHATERS/gote/pkg/core"
+	"github.com/WORKHATERS/gote/pkg/types"
+	"github.com/WORKHATERS/gote/pkg/updater"
+)
 
-   func main() {
-   	ctx, cancel := context.WithCancel(context.Background())
-   	defer cancel()
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-   	bot := core.NewBot(ctx, "ВАШ_ТОКЕН_БОТА")
+	bot := core.NewBot(ctx, "YOUR_BOT_TOKEN")
 
-   	poller := updater.NewPoller(bot)
-   	updates := poller.Start()
+	poller := updater.NewPoller(bot)
+	updates := poller.Start()
 
-   	for u := range updates {
-   		if u.Message != nil {
-   			bot.SendMessage(ctx, types.SendMessage{
-   				ChatId: u.Message.Chat.Id,
-   				Text:   u.Message.Text,
-   			})
-   		}
-   	}
-   }
-   ```
-
----
-
-## Архитектура
-
-Библиотека разделена на пакеты:
-
-| Пакет          | Назначение                                                                                           |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| `pkg/core`     | Основной объект `Bot`, методы API, отправка запросов, логирование.                                   |
-| `pkg/updater`  | Механизм получения обновлений (polling или webhook).                                                 |
-| `pkg/types`    | Типы данных, соответствующие Telegram Bot API (сообщения, медиа, чаты, пользователи, кнопки и т.д.). |
+	for u := range updates {
+		if u.Message != nil {
+			bot.SendMessage(ctx, types.SendMessage{
+				ChatId: u.Message.Chat.Id,
+				Text:   u.Message.Text,
+			})
+		}
+	}
+}
+```
 
 ---
 
-## Основные возможности
+## Architecture
 
-- Отправка и редактирование сообщений
-- Работа с inline и reply клавиатурами
-- Callback-запросы и inline-режим
-- Отправка фото, видео, документов и медиа-групп
-- Webhook и long polling режимы
-- Управление командами, чатами, пользователями
-- Встроенная система логирования
-- Полная типизация всех объектов Telegram API
+The library is divided into the following packages:
+
+| Package       | Purpose                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| `pkg/core`    | Core `Bot` object, API methods, request handling, and logging.                                        |
+| `pkg/updater` | Update receiving mechanism (polling or webhook).                                                      |
+| `pkg/types`   | Data structures corresponding to the Telegram Bot API (messages, media, chats, users, buttons, etc.). |
 
 ---
 
-## Принцип работы
+## Key Features
 
-1. **Создание объекта бота:**
+* Send and edit messages
+* Work with inline and reply keyboards
+* Callback queries and inline mode
+* Send photos, videos, documents, and media groups
+* Webhook and long polling support
+* Manage commands, chats, and users
+* Built-in logging system
+* Fully typed Telegram API objects
+
+---
+
+## How It Works
+
+1. **Create a bot instance:**
 
    ```go
    bot := core.NewBot(ctx, token)
    ```
 
-2. **Запуск получения обновлений:**
+2. **Start receiving updates:**
 
    ```go
    poller := updater.NewPoller(bot)
    updates := poller.Start()
    ```
 
-3. **Обработка обновлений:**
+3. **Handle updates:**
 
    ```go
    for update := range updates {
@@ -100,27 +100,27 @@ go get github.com/WORKHATERS/gote
        if update.CallbackQuery != nil {
            bot.AnswerCallbackQuery(ctx, ...)
        }
-       // и так далее
+       // and so on
    }
    ```
 
 ---
 
-## Преимущества gote
+## Why gote?
 
-* **Минимализм:** чистый и понятный API без избыточных абстракций
-* **Гибкость:** легко интегрируется в любые проекты
-* **Полный контроль:** доступ к каждому полю Telegram API
-* **Расширяемость:** настраиваемый HTTP-клиент, логгер
-
----
-
-## Примеры
-
-Примеры доступны в папке [`examples/`](examples/)
+* **Minimalist:** clean and straightforward API without unnecessary abstractions
+* **Flexible:** easy to integrate into any project
+* **Full Control:** access every field exposed by the Telegram API
+* **Extensible:** configurable HTTP client and logger
 
 ---
 
-## Лицензия
+## Examples
+
+Examples are available in the [`examples/`](examples/) directory.
+
+---
+
+## License
 
 MIT License © 2025 WORKHATERS
