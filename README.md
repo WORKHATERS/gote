@@ -1,7 +1,17 @@
 # gote — Telegram Bot API for Go
 
+<img src="./docs/logo.gif" align="right" height="256" />
+
 **gote** is a modern, minimalist, and developer-friendly library for working with the Telegram Bot API in **Go**.
-It provides full access to all Telegram features: messages, media, keyboards, commands, callback queries, webhooks, inline mode, and much more.
+It provides full access to all Telegram features: 
+- messages,
+- media,
+- keyboards,
+- commands,
+- callback queries,
+- webhooks,
+- inline mode,
+- and much more.
 
 [Bot API 10.0](https://core.telegram.org/bots/api#may-8-2026) released on May 8, 2026.
 
