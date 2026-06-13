@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"text/template"
@@ -168,6 +169,22 @@ func main() {
 		err = tmpl.Execute(f, td.Data)
 		if err != nil {
 			panic(err)
+		}
+		f.Close()
+	}
+
+	generatedFiles := []string{
+		outputDir + typesDir + "gen_types.go",
+		outputDir + typesDir + "gen_params.go",
+		outputDir + methodsDir + "gen_methods.go",
+	}
+
+	for _, file := range generatedFiles {
+		cmd := exec.Command("gofmt", "-s", "-w", file)
+		if err := cmd.Run(); err != nil {
+			log.Printf("Предупреждение: не получилось отформатировать %s: %v", file, err)
+		} else {
+			log.Printf("Форматирование прошло успешно: %s", file)
 		}
 	}
 }
