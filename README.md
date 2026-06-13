@@ -1,3 +1,10 @@
+[![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/WORKHATERS/gote/blob/main/LICENSE)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/WORKHATERS/gote)](https://pkg.go.dev/github.com/WORKHATERS/gote)
+[![GitHub stars](https://img.shields.io/github/stars/WORKHATERS/gote)](https://github.com/WORKHATERS/gote/stargazers)
+[![Go Report Card](https://goreportcard.com/badge/github.com/WORKHATERS/gote)](https://goreportcard.com/report/github.com/WORKHATERS/gote)
+
+# gote — Telegram Bot API for Go
 # gote — Telegram Bot API for Go
 
 <img src="./docs/logo.gif" align="right" height="256" />
