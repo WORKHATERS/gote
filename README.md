@@ -5,7 +5,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/WORKHATERS/gote)](https://goreportcard.com/report/github.com/WORKHATERS/gote)
 
 # gote — Telegram Bot API for Go
-# gote — Telegram Bot API for Go
 
 <img src="./docs/logo.gif" align="right" height="256" />
 
@@ -135,6 +134,16 @@ The library is divided into the following packages:
 ## Examples
 
 Examples are available in the [`examples/`](examples/) directory.
+
+---
+
+## Contact and Support
+
+- **Telegram**: [@MOXHATKA](https://t.me/MOXHATKA)
+- **Email**: MOXHATKA@protonmail.com
+- **Issues**: [GitHub Issues](https://github.com/WORKHATERS/gote/issues)
+
+Feel free to reach out for questions, suggestions, or collaboration.
 
 ---
 
